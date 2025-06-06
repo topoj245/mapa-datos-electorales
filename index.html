@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Registros INE</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+        
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.9em;
+        }
+        
+        select, input, button {
+            padding: 10px 15px;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .stats {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
+        .map-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            height: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 15px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            z-index: 1000;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e0e6ed;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        .success {
+            background: #51cf66;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .map-container {
+                height: 400px;
+            }
+        }
+        
+        .popup-content {
+            max-width: 250px;
+        }
+        
+        .popup-content h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        
+        .popup-content p {
+            margin: 5px 0;
+            color: #555;
+        }
+        
+        .popup-content strong {
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗳️ Mapa de Registros INE</h1>
+            <p>Visualización en tiempo real de registros procesados por sección electoral</p>
+        </div>
+        
+        <div id="message-container"></div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Google Sheets ID:</label>
+                <input type="text" id="sheetId" placeholder="ID de tu Google Sheet" style="min-width: 300px;">
+            </div>
+            <div class="control-group">
+                <label>API Key:</label>
+                <input type="password" id="apiKey" placeholder="Tu API Key de Google" style="min-width: 250px;">
+            </div>
+            <div class="control-group">
+                <label>Filtrar por Sección:</label>
+                <select id="sectionFilter">
+                    <option value="">Todas las secciones</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Filtrar por Año:</label>
+                <select id="yearFilter">
+                    <option value="">Todos los años</option>
+                </select>
+            </div>
+            <button class="btn" onclick="loadData()">🔄 Cargar Datos</button>
+            <button class="btn" onclick="toggleAutoRefresh()">⏰ Auto-actualizar</button>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalRecords">0</div>
+                <div class="stat-label">Total de Registros</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalSections">0</div>
+                <div class="stat-label">Secciones Únicas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="maleCount">0</div>
+                <div class="stat-label">Hombres</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="femaleCount">0</div>
+                <div class="stat-label">Mujeres</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="lastUpdate">--</div>
+                <div class="stat-label">Última Actualización</div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Cargando datos del mapa...</p>
+            </div>
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    
+    <script>
+        let map;
+        let markers = [];
+        let allData = [];
+        let autoRefreshInterval;
+        let isAutoRefreshing = false;
+        
+        // Inicializar el mapa
+        function initMap() {
+            map = L.map('map').setView([19.4326, -99.1332], 10); // Centro en CDMX
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Mostrar mensaje
+        function showMessage(message, type = 'error') {
+            const container = document.getElementById('message-container');
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = message;
+            container.appendChild(div);
+            
+            setTimeout(() => {
+                div.remove();
+            }, 5000);
+        }
+        
+        // Cargar datos desde Google Sheets
+        async function loadData() {
+            const sheetId = document.getElementById('sheetId').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            
+            if (!sheetId || !apiKey) {
+                showMessage('Por favor ingresa el ID de Google Sheet y la API Key');
+                return;
+            }
+            
+            document.getElementById('loading').style.display = 'flex';
+            
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:Z?key=${apiKey}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.values || data.values.length < 2) {
+                    throw new Error('No se encontraron datos en la hoja');
+                }
+                
+                processData(data.values);
+                showMessage('¡Datos cargados exitosamente!', 'success');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage(`Error al cargar datos: ${error.message}`);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+        
+        // Procesar datos del Google Sheet
+        function processData(rawData) {
+            const headers = rawData[0];
+            const rows = rawData.slice(1);
+            
+            // Mapear columnas (ajusta según tu estructura)
+            const columnMap = {
+                nombre: findColumnIndex(headers, ['nombre', 'name']),
+                domicilio: findColumnIndex(headers, ['domicilio', 'direccion', 'address']),
+                claveElector: findColumnIndex(headers, ['clave', 'elector', 'clave_elector']),
+                curp: findColumnIndex(headers, ['curp']),
+                fechaNacimiento: findColumnIndex(headers, ['fecha', 'nacimiento', 'fecha_nacimiento']),
+                sexo: findColumnIndex(headers, ['sexo', 'genero', 'gender']),
+                anoRegistro: findColumnIndex(headers, ['año', 'registro', 'ano_registro']),
+                seccion: findColumnIndex(headers, ['seccion', 'section']),
+                vigencia: findColumnIndex(headers, ['vigencia', 'validity'])
+            };
+            
+            allData = rows.map((row, index) => ({
+                id: index,
+                nombre: row[columnMap.nombre] || '',
+                domicilio: row[columnMap.domicilio] || '',
+                claveElector: row[columnMap.claveElector] || '',
+                curp: row[columnMap.curp] || '',
+                fechaNacimiento: row[columnMap.fechaNacimiento] || '',
+                sexo: row[columnMap.sexo] || '',
+                anoRegistro: row[columnMap.anoRegistro] || '',
+                seccion: row[columnMap.seccion] || '',
+                vigencia: row[columnMap.vigencia] || ''
+            })).filter(record => record.domicilio && record.seccion);
+            
+            updateFilters();
+            updateStats();
+            geocodeAndDisplayData();
+        }
+        
+        // Encontrar índice de columna
+        function findColumnIndex(headers, possibleNames) {
+            for (let name of possibleNames) {
+                const index = headers.findIndex(h => 
+                    h.toLowerCase().includes(name.toLowerCase())
+                );
+                if (index !== -1) return index;
+            }
+            return -1;
+        }
+        
+        // Actualizar filtros
+        function updateFilters() {
+            const sectionFilter = document.getElementById('sectionFilter');
+            const yearFilter = document.getElementById('yearFilter');
+            
+            // Limpiar filtros
+            sectionFilter.innerHTML = '<option value="">Todas las secciones</option>';
+            yearFilter.innerHTML = '<option value="">Todos los años</option>';
+            
+            // Obtener valores únicos
+            const sections = [...new Set(allData.map(d => d.seccion))].sort();
+            const years = [...new Set(allData.map(d => d.anoRegistro))].sort();
+            
+            sections.forEach(section => {
+                if (section) {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = `Sección ${section}`;
+                    sectionFilter.appendChild(option);
+                }
+            });
+            
+            years.forEach(year => {
+                if (year) {
+                    const option = document.createElement('option');
+                    option.value = year;
+                    option.textContent = year;
+                    yearFilter.appendChild(option);
+                }
+            });
+        }
+        
+        // Actualizar estadísticas
+        function updateStats() {
+            const filteredData = getFilteredData();
+            
+            document.getElementById('totalRecords').textContent = filteredData.length;
+            document.getElementById('totalSections').textContent = 
+                new Set(filteredData.map(d => d.seccion)).size;
+            document.getElementById('maleCount').textContent = 
+                filteredData.filter(d => d.sexo.toUpperCase() === 'M' || d.sexo.toUpperCase() === 'MASCULINO').length;
+            document.getElementById('femaleCount').textContent = 
+                filteredData.filter(d => d.sexo.toUpperCase() === 'F' || d.sexo.toUpperCase() === 'FEMENINO').length;
+            document.getElementById('lastUpdate').textContent = 
+                new Date().toLocaleTimeString();
+        }
+        
+        // Obtener datos filtrados
+        function getFilteredData() {
+            const sectionFilter = document.getElementById('sectionFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            
+            return allData.filter(record => {
+                const matchSection = !sectionFilter || record.seccion === sectionFilter;
+                const matchYear = !yearFilter || record.anoRegistro === yearFilter;
+                return matchSection && matchYear;
+            });
+        }
+        
+        // Geocodificar y mostrar datos
+        async function geocodeAndDisplayData() {
+            const filteredData = getFilteredData();
+            
+            // Limpiar marcadores existentes
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            
+            // Agrupar por sección para evitar muchas geocodificaciones
+            const sectionGroups = {};
+            filteredData.forEach(record => {
+                if (!sectionGroups[record.seccion]) {
+                    sectionGroups[record.seccion] = [];
+                }
+                sectionGroups[record.seccion].push(record);
+            });
+            
+            // Coordenadas de ejemplo para secciones (deberías usar geocodificación real)
+            const sampleCoordinates = [
+                [19.4326, -99.1332], [19.4426, -99.1432], [19.4226, -99.1232],
+                [19.4526, -99.1532], [19.4126, -99.1132], [19.4626, -99.1632],
+                [19.4026, -99.1032], [19.4726, -99.1732], [19.3926, -99.0932]
+            ];
+            
+            let coordIndex = 0;
+            for (const [seccion, records] of Object.entries(sectionGroups)) {
+                // Usar coordenadas de muestra (en producción, geocodifica las direcciones reales)
+                const coords = sampleCoordinates[coordIndex % sampleCoordinates.length];
+                coordIndex++;
+                
+                // Añadir pequeña variación aleatoria para evitar superposición
+                const lat = coords[0] + (Math.random() - 0.5) * 0.01;
+                const lng = coords[1] + (Math.random() - 0.5) * 0.01;
+                
+                const marker = L.marker([lat, lng]).addTo(map);
+                
+                // Crear popup con información agregada (sin datos personales)
+                const maleCount = records.filter(r => r.sexo.toUpperCase() === 'M' || r.sexo.toUpperCase() === 'MASCULINO').length;
+                const femaleCount = records.filter(r => r.sexo.toUpperCase() === 'F' || r.sexo.toUpperCase() === 'FEMENINO').length;
+                const years = [...new Set(records.map(r => r.anoRegistro))].sort();
+                
+                const popupContent = `
+                    <div class="popup-content">
+                        <h3>Sección ${seccion}</h3>
+                        <p><strong>Total de registros:</strong> ${records.length}</p>
+                        <p><strong>Hombres:</strong> ${maleCount}</p>
+                        <p><strong>Mujeres:</strong> ${femaleCount}</p>
+                        <p><strong>Años de registro:</strong> ${years.join(', ')}</p>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                markers.push(marker);
+            }
+            
+            // Ajustar vista del mapa para mostrar todos los marcadores
+            if (markers.length > 0) {
+                const group = new L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+        
+        // Alternar auto-actualización
+        function toggleAutoRefresh() {
+            const button = event.target;
+            
+            if (isAutoRefreshing) {
+                clearInterval(autoRefreshInterval);
+                button.textContent = '⏰ Auto-actualizar';
+                isAutoRefreshing = false;
+                showMessage('Auto-actualización desactivada', 'success');
+            } else {
+                autoRefreshInterval = setInterval(loadData, 60000); // Cada minuto
+                button.textContent = '⏹️ Detener Auto-actualización';
+                isAutoRefreshing = true;
+                showMessage('Auto-actualización activada (cada minuto)', 'success');
+            }
+        }
+        
+        // Event listeners para filtros
+        document.getElementById('sectionFilter').addEventListener('change', () => {
+            updateStats();
+            geocodeAndDisplayData();
+        });
+        
+        document.getElementById('yearFilter').addEventListener('change', () => {
+            updateStats();
+            geocodeAndDisplayData();
+        });
+        
+        // Inicializar cuando se carga la página
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+        });
+    </script>
+</body>
+</html>
